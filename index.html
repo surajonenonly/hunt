@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
-<title>Treasure Hunt Checkpoint</title>
+<title>Treasure Hunt Stop</title>
 <style>
   :root{
     --bg1:#3b2c18; --bg2:#120f0b;
@@ -73,20 +73,20 @@
   <header>
     <div class="icon">🗺️</div>
     <h1>Treasure Hunt</h1>
-    <span class="pill" id="pill">Checkpoint</span>
+    <span class="pill" id="pill">Stop</span>
   </header>
 
   <div class="card hidden" id="noStage">
-    <p><strong>Scan a checkpoint QR code to begin.</strong></p>
-    <p class="muted">Open your phone camera, point it at the QR code at the checkpoint, and tap the link that appears.</p>
+    <p><strong>Scan a stop QR code to begin.</strong></p>
+    <p class="muted">Open your phone camera, point it at the QR code at the stop, and tap the link that appears.</p>
   </div>
 
   <div id="flow">
     <div class="card" id="teamCard">
       <div class="step"><div class="num">1</div><h2>Your team</h2></div>
       <div id="teamForm">
-        <p class="muted">Enter the team code printed on your clue letter.</p>
-        <input type="text" id="teamInput" placeholder="e.g. RED-417" autocomplete="off" autocapitalize="characters" spellcheck="false">
+        <p class="muted">Enter your team name.</p>
+        <input type="text" id="teamInput" placeholder="e.g. SPECTERS" autocomplete="off" autocapitalize="characters" spellcheck="false">
         <button id="joinBtn" type="button">Join</button>
       </div>
       <div id="teamJoined" class="hidden">
@@ -132,7 +132,7 @@
 
 <script>
 // ====== PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE (ends with /exec) ======
-const API_URL = 'https://script.google.com/macros/s/AKfycbzkb63Fqhol9MQlPdMIA5H4yykfaMs8XWkYo1StnlVrAKIJd95JItiBZpor14Gbxfk-8A/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbyMTBpwgHoTS2I7x4gYf7zj-0rLbbwcn1oq51iiVhn6K_-nn9eUZaHhy48eFpUzzmreJA/exec';
 // ==============================================================================
 
 const qs = new URLSearchParams(location.search);
@@ -173,12 +173,12 @@ function renderTeam(){
   $('teamForm').classList.toggle('hidden', joined);
   $('teamJoined').classList.toggle('hidden', !joined);
   $('teamCard').classList.toggle('done', joined);
-  $('pill').textContent = 'Checkpoint ' + STAGE + (S.total ? ' of ' + S.total : '');
+  $('pill').textContent = 'Stop ' + STAGE + (S.total ? ' of ' + S.total : '');
   if(joined){
     $('teamNameOut').textContent = S.teamName;
     $('teamCodeOut').textContent = S.team;
-    if(S.done >= STAGE) setStatus('teamNote', 'Your team has already cleared this checkpoint. Submitting again will just show the clue.', 'warn');
-    else if(STAGE > S.done + 1) setStatus('teamNote', 'Your team still has to clear checkpoint ' + (S.done + 1) + ' first.', 'err');
+    if(S.done >= STAGE) setStatus('teamNote', 'Your team has already cleared this stop. Submitting again will just show the clue.', 'warn');
+    else if(STAGE > S.done + 1) setStatus('teamNote', 'Your team still has to clear stop ' + (S.done + 1) + ' first.', 'err');
     else setStatus('teamNote', '');
   }
   updateSubmit();
@@ -186,15 +186,15 @@ function renderTeam(){
 
 async function joinTeam(code){
   code = String(code || '').trim().toUpperCase().replace(/\s+/g, '');
-  if(!code){ setStatus('teamNote', 'Enter the team code from your letter.', 'err'); return; }
+  if(!code){ setStatus('teamNote', 'Enter your team name.', 'err'); return; }
   const btn = $('joinBtn');
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Checking…';
   setStatus('teamNote', '');
   try{
     const res = await api({ action:'team', team:code });
-    if(!res.ok) throw new Error(res.error || 'Unknown team code.');
+    if(!res.ok) throw new Error(res.error || 'Unknown team name.');
     S.team = res.team; S.teamName = res.teamName; S.total = res.total; S.done = res.done || 0;
-    save('th_team', S.team);
+    save('th2_team', S.team);
     renderTeam();
     if(S.img) stampPhoto();
   }catch(e){
@@ -273,7 +273,7 @@ function stampPhoto(){
   ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, h - bandH, w, bandH);
   ctx.fillStyle = '#fff'; ctx.textBaseline = 'top';
   ctx.font = '700 ' + fs + 'px system-ui,-apple-system,sans-serif';
-  ctx.fillText((S.teamName || 'Team') + ' · Checkpoint ' + STAGE, pad, h - bandH + pad, w - 2 * pad);
+  ctx.fillText((S.teamName || 'Team') + ' · Stop ' + STAGE, pad, h - bandH + pad, w - 2 * pad);
   ctx.font = l2 + 'px system-ui,-apple-system,sans-serif';
   const loc = S.pos ? S.pos.lat.toFixed(5) + ', ' + S.pos.lng.toFixed(5) + ' (±' + S.pos.acc + ' m)' : 'location not available';
   ctx.fillText(fmtTime(S.takenAt || new Date()) + ' · ' + loc, pad, h - bandH + pad * 2 + fs, w - 2 * pad);
@@ -320,8 +320,9 @@ async function submit(){
     });
     if(!res.ok) throw new Error(res.error || 'Something went wrong. Please try again.');
     S.done = Math.max(S.done || 0, res.stage); S.total = res.total;
-    const rec = { stage:res.stage, total:res.total, final:!!res.final, clue:res.clue, time:res.time || '', already:!!res.already };
-    save('th_last', JSON.stringify(rec));
+    const rec = { stage:res.stage, total:res.total, final:!!res.final, clue:res.clue, time:res.time || '', already:!!res.already,
+                  winner:!!res.winner, rank:res.rank || 0, teamName:S.teamName };
+    save('th2_last', JSON.stringify(rec));
     showClue(rec);
     renderTeam(); renderLastLink();
   }catch(e){
@@ -335,29 +336,30 @@ async function submit(){
 
 // ---------- Clue popup ----------
 function showClue(r){
-  $('mIcon').textContent = r.final ? '🏆' : (r.already ? '📜' : '✅');
-  $('mTitle').textContent = r.final ? 'You found the treasure!'
-    : (r.already ? 'Checkpoint ' + r.stage + ' already cleared' : 'Checkpoint ' + r.stage + ' cleared!');
+  $('mIcon').textContent = r.final ? (r.winner ? '🏆' : '🌟') : (r.already ? '📜' : '✅');
+  $('mTitle').textContent = r.final
+    ? (r.winner ? 'Champions of the Hunt!' : 'You made it, ' + (r.teamName || 'team') + '!')
+    : (r.already ? 'Stop ' + r.stage + ' already cleared' : 'Stop ' + r.stage + ' cleared!');
   $('mSub').textContent = r.final
-    ? 'All ' + r.total + ' checkpoints complete' + (r.time ? ' · finished ' + r.time : '')
+    ? 'All ' + r.total + ' stops complete' + (r.time ? ' · finished ' + r.time : '')
     : (r.time ? 'Recorded at ' + r.time + '. ' : '') + 'Your next clue:';
   $('mClue').textContent = r.clue;
   $('mClose').textContent = r.final ? 'Close' : 'Got it — let\'s go!';
   $('modal').classList.remove('hidden');
 }
 function renderLastLink(){
-  $('lastClueBtn').classList.toggle('hidden', !read('th_last'));
+  $('lastClueBtn').classList.toggle('hidden', !read('th2_last'));
 }
 
 // ---------- Wire up ----------
 $('joinBtn').addEventListener('click', function(){ joinTeam($('teamInput').value); });
 $('teamInput').addEventListener('keydown', function(e){ if(e.key === 'Enter') joinTeam($('teamInput').value); });
-$('changeTeam').addEventListener('click', function(){ S.team = null; save('th_team', null); $('teamInput').value = ''; setStatus('teamNote', ''); renderTeam(); });
+$('changeTeam').addEventListener('click', function(){ S.team = null; save('th2_team', null); $('teamInput').value = ''; setStatus('teamNote', ''); renderTeam(); });
 $('locBtn').addEventListener('click', startLocation);
 $('submitBtn').addEventListener('click', submit);
 $('mClose').addEventListener('click', function(){ $('modal').classList.add('hidden'); });
 $('lastClueBtn').addEventListener('click', function(){
-  try{ const r = JSON.parse(read('th_last')); if(r) showClue(r); }catch(e){}
+  try{ const r = JSON.parse(read('th2_last')); if(r) showClue(r); }catch(e){}
 });
 
 (function init(){
@@ -365,11 +367,11 @@ $('lastClueBtn').addEventListener('click', function(){
   if(!STAGE || !KEY){
     $('noStage').classList.remove('hidden');
     $('flow').classList.add('hidden');
-    $('pill').textContent = 'Scan a checkpoint QR';
+    $('pill').textContent = 'Scan a stop QR';
     return;
   }
   renderTeam();
-  const saved = read('th_team');
+  const saved = read('th2_team');
   if(saved){ $('teamInput').value = saved; joinTeam(saved); }
   startLocation();
 })();
