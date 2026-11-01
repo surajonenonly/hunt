@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Treasure Hunt Checkpoint</title>
+<style>
+  :root{
+    --bg1:#3b2c18; --bg2:#120f0b;
+    --card:#fffaf0; --ink:#2a2116; --muted:#7b6a50; --line:#eadcc0;
+    --gold:#c98a22; --gold-dark:#a46f15; --ok:#2e7d4f; --err:#b3261e; --warn:#8a5f00;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);
+    background:radial-gradient(120% 80% at 50% 0%,var(--bg1),var(--bg2) 70%) fixed;background-color:var(--bg2);
+    min-height:100vh;padding:24px 16px 48px}
+  .wrap{max-width:460px;margin:0 auto}
+  header{text-align:center;color:#f5e6c8;margin-bottom:18px}
+  header .icon{font-size:42px;line-height:1}
+  header h1{font-size:24px;margin:6px 0 8px;letter-spacing:.3px}
+  .pill{display:inline-block;background:rgba(201,138,34,.18);border:1px solid rgba(201,138,34,.6);
+    color:#f3cf8a;padding:4px 12px;border-radius:999px;font-size:13px;font-weight:600}
+  .card{background:var(--card);border-radius:16px;padding:16px 16px 18px;margin-bottom:12px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .step{display:flex;gap:10px;align-items:center;margin-bottom:8px}
+  .num{flex:none;width:26px;height:26px;border-radius:50%;background:var(--line);color:var(--muted);
+    display:grid;place-items:center;font-weight:700;font-size:14px}
+  .card.done .num{background:var(--ok);color:#fff}
+  .step h2{font-size:16px;margin:0}
+  p{margin:6px 0;line-height:1.45}
+  .muted{color:var(--muted);font-size:14px}
+  input[type=text]{width:100%;font-size:18px;padding:12px;border:2px solid var(--line);border-radius:10px;
+    text-transform:uppercase;letter-spacing:1px;background:#fff;color:var(--ink)}
+  input[type=text]:focus{outline:none;border-color:var(--gold)}
+  button,.btn{display:block;width:100%;border:0;border-radius:12px;padding:14px;font-size:16px;font-weight:700;
+    cursor:pointer;background:var(--gold);color:#fff;text-align:center;margin-top:10px;font-family:inherit;
+    -webkit-tap-highlight-color:transparent}
+  button:active,.btn:active{background:var(--gold-dark)}
+  .secondary{background:transparent!important;color:var(--gold-dark);border:2px solid var(--gold)}
+  button:disabled{opacity:.5;cursor:default}
+  .linkish{background:none;border:0;color:var(--gold-dark);font-weight:600;padding:0;margin:0;width:auto;
+    display:inline;font-size:14px;text-decoration:underline}
+  .linkish:active{background:none}
+  .teamname{font-size:20px;font-weight:800}
+  .status{font-size:14px;margin-top:8px;line-height:1.4}
+  .status:empty{display:none}
+  .status.ok{color:var(--ok)} .status.err{color:var(--err)} .status.warn{color:var(--warn)}
+  #photoInput{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+  #preview{display:none;width:100%;border-radius:10px;margin-top:10px}
+  #submitBtn{font-size:18px;padding:16px;margin-top:4px}
+  #submitHint{text-align:center;color:#d9c9a8;font-size:13px;margin-top:8px}
+  .hidden{display:none!important}
+  #msg{margin-top:12px;padding:12px;border-radius:10px;font-size:15px;line-height:1.4}
+  #msg.err{background:#fde8e6;color:var(--err)} #msg.info{background:#fff3d6;color:#6b4b00}
+  .modal{position:fixed;inset:0;background:rgba(10,8,5,.78);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
+  .sheet{background:var(--card);border-radius:18px;max-width:440px;width:100%;padding:22px 20px;max-height:90vh;overflow:auto;
+    text-align:center;animation:pop .25s ease-out}
+  @keyframes pop{from{transform:scale(.92);opacity:0}to{transform:scale(1);opacity:1}}
+  .sheet .big{font-size:52px;line-height:1.1}
+  .sheet h3{margin:8px 0 4px;font-size:21px}
+  .clue{white-space:pre-line;text-align:left;background:#f6ecd6;border:1px dashed var(--gold);border-radius:12px;padding:14px;
+    font-size:18px;line-height:1.55;margin:14px 0 4px;font-family:Georgia,"Times New Roman",serif}
+  .spinner{display:inline-block;width:16px;height:16px;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;
+    animation:spin .8s linear infinite;vertical-align:-3px;margin-right:8px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  footer{text-align:center;margin-top:16px}
+  footer .linkish{color:#f3cf8a}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="icon">🗺️</div>
+    <h1>Treasure Hunt</h1>
+    <span class="pill" id="pill">Checkpoint</span>
+  </header>
+
+  <div class="card hidden" id="noStage">
+    <p><strong>Scan a checkpoint QR code to begin.</strong></p>
+    <p class="muted">Open your phone camera, point it at the QR code at the checkpoint, and tap the link that appears.</p>
+  </div>
+
+  <div id="flow">
+    <div class="card" id="teamCard">
+      <div class="step"><div class="num">1</div><h2>Your team</h2></div>
+      <div id="teamForm">
+        <p class="muted">Enter the team code printed on your clue letter.</p>
+        <input type="text" id="teamInput" placeholder="e.g. RED-417" autocomplete="off" autocapitalize="characters" spellcheck="false">
+        <button id="joinBtn" type="button">Join</button>
+      </div>
+      <div id="teamJoined" class="hidden">
+        <div class="teamname" id="teamNameOut"></div>
+        <div class="muted">Code <span id="teamCodeOut"></span> · <button class="linkish" id="changeTeam" type="button">change</button></div>
+      </div>
+      <div class="status" id="teamNote"></div>
+    </div>
+
+    <div class="card" id="locCard">
+      <div class="step"><div class="num">2</div><h2>Share location</h2></div>
+      <p class="muted">Your location and time are recorded with your selfie.</p>
+      <button id="locBtn" class="secondary" type="button">Share location</button>
+      <div class="status" id="locStatus"></div>
+    </div>
+
+    <div class="card" id="photoCard">
+      <div class="step"><div class="num">3</div><h2>Team selfie</h2></div>
+      <p class="muted">Every team member must be in the photo.</p>
+      <label class="btn secondary" for="photoInput" id="photoLabel">📸 Take team selfie</label>
+      <input type="file" id="photoInput" accept="image/*" capture="user">
+      <img id="preview" alt="Your team selfie">
+      <div class="status" id="photoStatus"></div>
+    </div>
+
+    <button id="submitBtn" type="button" disabled>Submit &amp; unlock next clue</button>
+    <div id="submitHint"></div>
+    <div id="msg" class="hidden"></div>
+  </div>
+
+  <footer><button class="linkish hidden" id="lastClueBtn" type="button">📜 Show my latest clue</button></footer>
+</div>
+
+<div class="modal hidden" id="modal" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <div class="big" id="mIcon">✅</div>
+    <h3 id="mTitle"></h3>
+    <div class="muted" id="mSub"></div>
+    <div class="clue" id="mClue"></div>
+    <button id="mClose" type="button">Got it</button>
+  </div>
+</div>
+
+<script>
+// ====== PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE (ends with /exec) ======
+const API_URL = 'https://script.google.com/macros/s/AKfycbzkb63Fqhol9MQlPdMIA5H4yykfaMs8XWkYo1StnlVrAKIJd95JItiBZpor14Gbxfk-8A/exec';
+// ==============================================================================
+
+const qs = new URLSearchParams(location.search);
+const STAGE = parseInt(qs.get('s'), 10);
+const KEY = (qs.get('k') || '').trim();
+const $ = (id) => document.getElementById(id);
+const S = { team:null, teamName:null, total:null, done:0, pos:null, locErr:null, watchId:null,
+            img:null, takenAt:null, photo:null, sending:false };
+
+function save(k, v){ try{ if(v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); }catch(e){} }
+function read(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+
+function setStatus(id, text, cls){ const el = $(id); el.textContent = text || ''; el.className = 'status' + (cls ? ' ' + cls : ''); }
+function showMsg(text, cls){
+  const el = $('msg');
+  if(!text){ el.className = 'hidden'; el.textContent = ''; return; }
+  el.textContent = text; el.className = cls || 'info';
+}
+function fmtTime(d){
+  return d.toLocaleString('en-IN', { day:'numeric', month:'short', year:'numeric', hour:'numeric', minute:'2-digit', second:'2-digit' });
+}
+
+async function api(body){
+  if(!/^https:\/\/script\.google\.com\//.test(API_URL)){
+    throw new Error('Setup incomplete: the organiser has not added the web app URL yet.');
+  }
+  let r;
+  try{ r = await fetch(API_URL, { method:'POST', body: JSON.stringify(body) }); }
+  catch(e){ throw new Error('No connection. Check your mobile data and try again.'); }
+  if(!r.ok) throw new Error('Server problem (' + r.status + '). Try again in a moment.');
+  try{ return await r.json(); }
+  catch(e){ throw new Error('Unexpected reply from server. Tell the organiser (web app access must be "Anyone").'); }
+}
+
+// ---------- Team ----------
+function renderTeam(){
+  const joined = !!S.team;
+  $('teamForm').classList.toggle('hidden', joined);
+  $('teamJoined').classList.toggle('hidden', !joined);
+  $('teamCard').classList.toggle('done', joined);
+  $('pill').textContent = 'Checkpoint ' + STAGE + (S.total ? ' of ' + S.total : '');
+  if(joined){
+    $('teamNameOut').textContent = S.teamName;
+    $('teamCodeOut').textContent = S.team;
+    if(S.done >= STAGE) setStatus('teamNote', 'Your team has already cleared this checkpoint. Submitting again will just show the clue.', 'warn');
+    else if(STAGE > S.done + 1) setStatus('teamNote', 'Your team still has to clear checkpoint ' + (S.done + 1) + ' first.', 'err');
+    else setStatus('teamNote', '');
+  }
+  updateSubmit();
+}
+
+async function joinTeam(code){
+  code = String(code || '').trim().toUpperCase().replace(/\s+/g, '');
+  if(!code){ setStatus('teamNote', 'Enter the team code from your letter.', 'err'); return; }
+  const btn = $('joinBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Checking…';
+  setStatus('teamNote', '');
+  try{
+    const res = await api({ action:'team', team:code });
+    if(!res.ok) throw new Error(res.error || 'Unknown team code.');
+    S.team = res.team; S.teamName = res.teamName; S.total = res.total; S.done = res.done || 0;
+    save('th_team', S.team);
+    renderTeam();
+    if(S.img) stampPhoto();
+  }catch(e){
+    S.team = null; $('teamInput').value = code; renderTeam();
+    setStatus('teamNote', e.message, 'err');
+  }finally{
+    btn.disabled = false; btn.textContent = 'Join';
+  }
+}
+
+// ---------- Location ----------
+function startLocation(){
+  if(!('geolocation' in navigator)){
+    S.locErr = 'unsupported';
+    setStatus('locStatus', 'This browser cannot share location. Open the link in Chrome or Safari.', 'err');
+    updateSubmit(); return;
+  }
+  if(!S.pos) setStatus('locStatus', 'Finding your location… allow access if your phone asks.', 'warn');
+  navigator.geolocation.getCurrentPosition(onPos, onPosErr, { enableHighAccuracy:true, timeout:20000, maximumAge:0 });
+  if(S.watchId == null){
+    S.watchId = navigator.geolocation.watchPosition(onPos, function(){}, { enableHighAccuracy:true, maximumAge:0 });
+  }
+}
+function onPos(p){
+  const c = p.coords, acc = Math.round(c.accuracy);
+  const old = S.pos;
+  if(!old || acc <= old.acc * 1.5 || Date.now() - old.t > 10000){
+    S.pos = { lat:c.latitude, lng:c.longitude, acc:acc, t:Date.now() };
+  }
+  S.locErr = null;
+  $('locCard').classList.add('done');
+  const good = S.pos.acc <= 50;
+  setStatus('locStatus', '📍 Location found (accurate to ±' + S.pos.acc + ' m)' +
+    (good ? '' : '. It may improve if you wait a few seconds or step outside.'), good ? 'ok' : 'warn');
+  $('locBtn').textContent = 'Refresh location';
+  updateSubmit();
+}
+function onPosErr(err){
+  if(S.pos) return;
+  S.locErr = err.code;
+  let t;
+  if(err.code === 1){
+    t = 'Location is blocked. Android: tap the icon left of the web address › Permissions › Location › Allow. ' +
+        'iPhone: Settings › Privacy & Security › Location Services › Safari Websites › While Using the App. Then reload this page.';
+  } else if(err.code === 3){
+    t = 'Could not get a location fix in time. Move near a window or outside and tap "Share location" again.';
+  } else {
+    t = 'Location unavailable. Make sure your phone\'s Location/GPS is switched on, then try again.';
+  }
+  setStatus('locStatus', t, 'err');
+  updateSubmit();
+}
+
+// ---------- Selfie ----------
+function loadImage(file){
+  return new Promise(function(resolve, reject){
+    const url = URL.createObjectURL(file);
+    const im = new Image();
+    im.onload = function(){ URL.revokeObjectURL(url); resolve(im); };
+    im.onerror = function(){ URL.revokeObjectURL(url); reject(new Error('Could not read that photo. Please take it again.')); };
+    im.src = url;
+  });
+}
+function stampPhoto(){
+  if(!S.img) return;
+  const im = S.img, MAX = 1280;
+  let w = im.naturalWidth || im.width, h = im.naturalHeight || im.height;
+  const sc = Math.min(1, MAX / Math.max(w, h));
+  w = Math.round(w * sc); h = Math.round(h * sc);
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  const ctx = cv.getContext('2d');
+  ctx.drawImage(im, 0, 0, w, h);
+
+  const fs = Math.max(13, Math.round(w / 36)), l2 = Math.round(fs * 0.82), pad = Math.round(fs * 0.6);
+  const bandH = pad * 3 + fs + l2;
+  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, h - bandH, w, bandH);
+  ctx.fillStyle = '#fff'; ctx.textBaseline = 'top';
+  ctx.font = '700 ' + fs + 'px system-ui,-apple-system,sans-serif';
+  ctx.fillText((S.teamName || 'Team') + ' · Checkpoint ' + STAGE, pad, h - bandH + pad, w - 2 * pad);
+  ctx.font = l2 + 'px system-ui,-apple-system,sans-serif';
+  const loc = S.pos ? S.pos.lat.toFixed(5) + ', ' + S.pos.lng.toFixed(5) + ' (±' + S.pos.acc + ' m)' : 'location not available';
+  ctx.fillText(fmtTime(S.takenAt || new Date()) + ' · ' + loc, pad, h - bandH + pad * 2 + fs, w - 2 * pad);
+
+  S.photo = cv.toDataURL('image/jpeg', 0.82);
+  const pv = $('preview'); pv.src = S.photo; pv.style.display = 'block';
+}
+$('photoInput').addEventListener('change', async function(e){
+  const f = e.target.files && e.target.files[0];
+  if(!f) return;
+  try{
+    S.img = await loadImage(f);
+    S.takenAt = new Date();
+    stampPhoto();
+    $('photoCard').classList.add('done');
+    $('photoLabel').textContent = '📸 Retake selfie';
+    setStatus('photoStatus', 'Looks good! Retake if anyone is missing.', 'ok');
+  }catch(err){
+    setStatus('photoStatus', err.message, 'err');
+  }
+  e.target.value = '';
+  updateSubmit();
+});
+
+// ---------- Submit ----------
+function updateSubmit(){
+  const ready = S.team && S.img && (S.pos || S.locErr != null);
+  $('submitBtn').disabled = !ready || S.sending;
+  $('submitHint').textContent = !S.team ? 'Join your team first.'
+    : !S.img ? 'Take your team selfie.'
+    : (!S.pos && S.locErr == null) ? 'Waiting for your location…' : '';
+}
+async function submit(){
+  if(S.sending) return;
+  S.sending = true; updateSubmit(); showMsg('');
+  const btn = $('submitBtn');
+  btn.innerHTML = '<span class="spinner"></span>Uploading selfie…';
+  try{
+    stampPhoto();
+    const res = await api({
+      action:'submit', team:S.team, stage:STAGE, key:KEY,
+      lat: S.pos ? S.pos.lat : null, lng: S.pos ? S.pos.lng : null, acc: S.pos ? S.pos.acc : null,
+      image:S.photo, clientTime: S.takenAt ? S.takenAt.toISOString() : '', ua: navigator.userAgent.slice(0, 150)
+    });
+    if(!res.ok) throw new Error(res.error || 'Something went wrong. Please try again.');
+    S.done = Math.max(S.done || 0, res.stage); S.total = res.total;
+    const rec = { stage:res.stage, total:res.total, final:!!res.final, clue:res.clue, time:res.time || '', already:!!res.already };
+    save('th_last', JSON.stringify(rec));
+    showClue(rec);
+    renderTeam(); renderLastLink();
+  }catch(e){
+    showMsg(e.message, 'err');
+  }finally{
+    S.sending = false;
+    btn.textContent = 'Submit & unlock next clue';
+    updateSubmit();
+  }
+}
+
+// ---------- Clue popup ----------
+function showClue(r){
+  $('mIcon').textContent = r.final ? '🏆' : (r.already ? '📜' : '✅');
+  $('mTitle').textContent = r.final ? 'You found the treasure!'
+    : (r.already ? 'Checkpoint ' + r.stage + ' already cleared' : 'Checkpoint ' + r.stage + ' cleared!');
+  $('mSub').textContent = r.final
+    ? 'All ' + r.total + ' checkpoints complete' + (r.time ? ' · finished ' + r.time : '')
+    : (r.time ? 'Recorded at ' + r.time + '. ' : '') + 'Your next clue:';
+  $('mClue').textContent = r.clue;
+  $('mClose').textContent = r.final ? 'Close' : 'Got it — let\'s go!';
+  $('modal').classList.remove('hidden');
+}
+function renderLastLink(){
+  $('lastClueBtn').classList.toggle('hidden', !read('th_last'));
+}
+
+// ---------- Wire up ----------
+$('joinBtn').addEventListener('click', function(){ joinTeam($('teamInput').value); });
+$('teamInput').addEventListener('keydown', function(e){ if(e.key === 'Enter') joinTeam($('teamInput').value); });
+$('changeTeam').addEventListener('click', function(){ S.team = null; save('th_team', null); $('teamInput').value = ''; setStatus('teamNote', ''); renderTeam(); });
+$('locBtn').addEventListener('click', startLocation);
+$('submitBtn').addEventListener('click', submit);
+$('mClose').addEventListener('click', function(){ $('modal').classList.add('hidden'); });
+$('lastClueBtn').addEventListener('click', function(){
+  try{ const r = JSON.parse(read('th_last')); if(r) showClue(r); }catch(e){}
+});
+
+(function init(){
+  renderLastLink();
+  if(!STAGE || !KEY){
+    $('noStage').classList.remove('hidden');
+    $('flow').classList.add('hidden');
+    $('pill').textContent = 'Scan a checkpoint QR';
+    return;
+  }
+  renderTeam();
+  const saved = read('th_team');
+  if(saved){ $('teamInput').value = saved; joinTeam(saved); }
+  startLocation();
+})();
+</script>
+</body>
+</html>
